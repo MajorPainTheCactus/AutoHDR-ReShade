@@ -1,21 +1,17 @@
 #include "ReShade.fxh"
 
+uniform float HCRT_INPUT_COLOUR_SPACE              <ui_type = "drag"; ui_min = 0.0; ui_max = 3.0;     ui_step = 1.0;  ui_label = "Input Colour Space: r709 | PAL | NTSC-U | NTSC-J"; > = 0.0;
+uniform float HCRT_OUTPUT_COLOUR_SPACE             <ui_type = "drag"; ui_min = 0.0; ui_max = 3.0;     ui_step = 1.0;  ui_label = "Output Colour Space: r709 | sRGB | DCI-P3 | HDR10";> = 3.0;
+uniform float HCRT_MAX_NITS                        <ui_type = "drag"; ui_min = 0.0; ui_max = 10000.0; ui_step = 10.0; ui_label = "HDR10: Display's Peak Luminance";> = 1000.0;
+uniform float HCRT_PAPER_WHITE_NITS                <ui_type = "drag"; ui_min = 0.0; ui_max = 10000.0; ui_step = 10.0; ui_label = "HDR10: Display's Paper White Luminance";> = 200.0;
+uniform float HCRT_EXPAND_GAMUT                    <ui_type = "drag"; ui_min = 0.0; ui_max = 1.0;     ui_step = 1.0;  ui_label = "HDR10: Original/Vivid";> = 1.0;
 
-uniform float HCRT_HDR                             <ui_type = "drag"; ui_min = 0.0; ui_max = 1.0;     ui_step = 1.0;  ui_label = "SDR | HDR";> = 1.0;
-uniform float HCRT_OUTPUT_COLOUR_SPACE             <ui_type = "drag"; ui_min = 0.0; ui_max = 2.0;     ui_step = 1.0;  ui_label = "SDR: Display's Colour Space: r709 | sRGB | DCI-P3";> = 1.0;
-uniform float HCRT_MAX_NITS                        <ui_type = "drag"; ui_min = 0.0; ui_max = 10000.0; ui_step = 10.0; ui_label = "HDR: Display's Peak Luminance";> = 700.0;
-uniform float HCRT_PAPER_WHITE_NITS                <ui_type = "drag"; ui_min = 0.0; ui_max = 10000.0; ui_step = 10.0; ui_label = "HDR: Display's Paper White Luminance";> = 700.0;
-uniform float HCRT_EXPAND_GAMUT                    <ui_type = "drag"; ui_min = 0.0; ui_max = 1.0;     ui_step = 1.0;  ui_label = "HDR: Original/Vivid";> = 0.0;
-
-uniform float HCRT_CRT_COLOUR_SYSTEM               <ui_type = "drag"; ui_min = 0.0; ui_max = 3.0;     ui_step = 1.0;  ui_label = "Input Colour Space: r709 | PAL | NTSC-U | NTSC-J";> = 2.0;
 uniform float HCRT_WHITE_TEMPERATURE               <ui_type = "drag"; ui_min = -5000.0; ui_max = 12000.0;     ui_step = 100.0;  ui_label = "White Temperature Offset (Kelvin)";> = 0.0;
 uniform float HCRT_BRIGHTNESS                      <ui_type = "drag"; ui_min = -1.0; ui_max = 1.0;    ui_step = 0.01;  ui_label = "Brightness";> = 0.0;
 uniform float HCRT_CONTRAST                        <ui_type = "drag"; ui_min = -1.0; ui_max = 1.0;    ui_step = 0.01;  ui_label = "Contrast";> = 0.0;
 uniform float HCRT_SATURATION                      <ui_type = "drag"; ui_min = -1.0; ui_max = 1.0;    ui_step = 0.01;  ui_label = "Saturation";> = 0.0;
 uniform float HCRT_GAMMA_IN                        <ui_type = "drag"; ui_min = -1.0; ui_max = 1.0;    ui_step = 0.01;  ui_label = "Gamma In";> = 0.0;
-uniform float HCRT_GAMMA_OUT                       <ui_type = "drag"; ui_min = -0.4; ui_max = 0.4;    ui_step = 0.005; ui_label = "Gamma Out";> = 0.0;
-uniform float HCRT_PIN_PHASE                       <ui_type = "drag"; ui_min = -0.2; ui_max = 0.2;    ui_step = 0.01;  ui_label = "Pin Phase";> = 0.0;
-uniform float HCRT_PIN_AMP                         <ui_type = "drag"; ui_min = -0.2; ui_max = 0.2;    ui_step = 0.01;  ui_label = "Pin Amp";> = 0.0;
+uniform float HCRT_GAMMA_OUT                       <ui_type = "drag"; ui_min = -0.4; ui_max = 0.4;    ui_step = 0.005; ui_label = "SDR: Gamma Out";> = 0.0;
 
 #define COMPAT_TEXTURE(c, d) tex2D(c, d)
 
@@ -218,7 +214,7 @@ float3 BrightnessContrastSaturation(const float3 xyz)
 
 float3 ColourGrade(const float3 colour)
 {
-   const uint colour_system      = uint(HCRT_CRT_COLOUR_SYSTEM);
+   const uint colour_system      = uint(HCRT_INPUT_COLOUR_SPACE);
 
    const float3 white_point      = WhiteBalance(kTemperatures[colour_system] + HCRT_WHITE_TEMPERATURE, colour);
 
@@ -256,7 +252,7 @@ float3 InverseTonemap(const float3 sdr_linear, const float max_nits, const float
 
 float3 InverseTonemapConditional(const float3 _linear)
 {
-   if(HCRT_HDR < 1.0f)
+   if(HCRT_OUTPUT_COLOUR_SPACE < 3.0f)
    {
       return _linear;
    }
@@ -340,26 +336,23 @@ float3 LinearToDCIP3(const float3 colour)
 
 float3 GammaCorrect(const float3 scanline_colour)
 {
-   if(HCRT_HDR < 1.0f)
-   {
-      if(HCRT_OUTPUT_COLOUR_SPACE == 0.0f)
-      {
-         return LinearTo709(scanline_colour);
-      }
-      else if(HCRT_OUTPUT_COLOUR_SPACE == 1.0f)
-      {
-         return LinearTosRGB(scanline_colour);
-      }
-      else
-      {
-         const float3 dcip3_colour = mul(kXYZ_to_DCIP3, mul(k709_to_XYZ, scanline_colour)); 
-         return LinearToDCIP3(dcip3_colour);
-      }
-   }
-   else
-   {
-      return Hdr10(scanline_colour, HCRT_PAPER_WHITE_NITS, HCRT_EXPAND_GAMUT);
-   }
+    if (HCRT_OUTPUT_COLOUR_SPACE == 3.0f)
+    {
+        return Hdr10(scanline_colour, HCRT_PAPER_WHITE_NITS, HCRT_EXPAND_GAMUT);
+    }
+    else if(HCRT_OUTPUT_COLOUR_SPACE == 0.0f)
+    {
+        return LinearTo709(scanline_colour);
+    }
+    else if(HCRT_OUTPUT_COLOUR_SPACE == 1.0f)
+    {
+        return LinearTosRGB(scanline_colour);
+    }
+    else
+    {
+        const float3 dcip3_colour = mul(kXYZ_to_DCIP3, mul(k709_to_XYZ, scanline_colour)); 
+        return LinearToDCIP3(dcip3_colour);
+    }
 }
 
 ////////////////////////////////////////
