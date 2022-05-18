@@ -12,6 +12,7 @@
 #include <sstream>
 #include <unordered_set>
 #include <cassert>
+#include <atlbase.h>
 
 
 //#define __WINRT__
@@ -369,9 +370,9 @@ static void on_destroy_device(reshade::api::device* device)
 //    static int t = 0; ++t;
 //}
 
-static bool on_create_swapchain(reshade::api::resource_desc& back_buffer_desc, reshade::api::swapchain_desc& swapchain_desc, void* hwnd)
+static bool on_create_swapchain(reshade::api::swapchain_desc& swapchain_desc, void* hwnd)
 {
-    back_buffer_desc.texture.format = reshade::api::format::r10g10b10a2_unorm;
+    swapchain_desc.texture.format = reshade::api::format::r10g10b10a2_unorm;
 
     //swapchain_desc.refresh_rate.numerator = 60;
     //swapchain_desc.refresh_rate.denominator = 1;
@@ -387,7 +388,7 @@ static bool on_create_swapchain(reshade::api::resource_desc& back_buffer_desc, r
 
         if ((device_type == reshade::api::device_api::d3d11) || (device_type == reshade::api::device_api::d3d12))
         {
-            DXGI_SWAP_EFFECT swap_effect = static_cast<DXGI_SWAP_EFFECT>(swapchain_desc.swap_effect);
+            DXGI_SWAP_EFFECT swap_effect = static_cast<DXGI_SWAP_EFFECT>(swapchain_desc.present_mode);
 
             if (swap_effect == DXGI_SWAP_EFFECT_DISCARD)
             {
@@ -398,9 +399,9 @@ static bool on_create_swapchain(reshade::api::resource_desc& back_buffer_desc, r
                 swap_effect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
             }
 
-            swapchain_desc.swap_effect = static_cast<uint32_t>(swap_effect);
+            swapchain_desc.present_mode = static_cast<uint32_t>(swap_effect);
 
-            swapchain_desc.flags |= static_cast<uint32_t>(DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+            swapchain_desc.present_flags |= static_cast<uint32_t>(DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
         }
     }
 
@@ -471,7 +472,7 @@ static void on_present(reshade::api::command_queue* queue, reshade::api::swapcha
     if((device_type == reshade::api::device_api::d3d11) || (device_type == reshade::api::device_api::d3d12))
     {
         IDXGISwapChain* native_swapchain = reinterpret_cast<IDXGISwapChain*>(swapchain->get_native());
-        IDXGISwapChain4* swapchain4 = nullptr;
+        ATL::CComPtr<IDXGISwapChain4> swapchain4;
 
         if (SUCCEEDED(native_swapchain->QueryInterface(__uuidof(IDXGISwapChain4), (void**)&swapchain4)))
         {
@@ -495,6 +496,8 @@ static void on_present(reshade::api::command_queue* queue, reshade::api::swapcha
                 }
 
                 g_hdr_support = dxgi_check_display_hdr_support(factory, reinterpret_cast<HWND>(swapchain->get_hwnd()));
+                
+                factory->Release();
 #endif // __WINRT__
             }
 
