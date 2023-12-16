@@ -357,7 +357,7 @@ static void on_init_device(reshade::api::device* device)
 
     g_device = device;
 
-    reshade::config_get_value(nullptr, "HDR", "EnableHDR", g_hdr_enable);
+    reshade::get_config_value(nullptr, "HDR", "EnableHDR", g_hdr_enable);
 }
 
 static void on_destroy_device(reshade::api::device* device)
@@ -372,14 +372,14 @@ static void on_destroy_device(reshade::api::device* device)
 
 static bool on_create_swapchain(reshade::api::swapchain_desc& swapchain_desc, void* hwnd)
 {
-    swapchain_desc.texture.format = reshade::api::format::r10g10b10a2_unorm;
+    swapchain_desc.back_buffer.texture.format = reshade::api::format::r10g10b10a2_unorm;
 
     //swapchain_desc.refresh_rate.numerator = 60;
     //swapchain_desc.refresh_rate.denominator = 1;
 
-    if (swapchain_desc.buffer_count < 2)
+    if (swapchain_desc.back_buffer_count < 2)
     {
-        swapchain_desc.buffer_count = 2;
+        swapchain_desc.back_buffer_count = 2;
     }
 
     if (g_device)
@@ -610,7 +610,7 @@ static void draw_settings_overlay(reshade::api::effect_runtime* runtime)
 
         if (modified)
         {
-            reshade::config_set_value(nullptr, "HDR", "EnableHDR", g_hdr_enable);
+            reshade::set_config_value(nullptr, "HDR", "EnableHDR", g_hdr_enable);
         }
     }
     else
